@@ -505,7 +505,9 @@
 
             if (!response.ok) {
                 const backendError = data?.error || data?.message || data;
-                throw new Error(typeof backendError === 'string' ? backendError : JSON.stringify(backendError));
+                const details = data?.details ? `\nDetalle: ${data.details}` : '';
+                const modelInfo = data?.model ? `\nModelo: ${data.model}` : '';
+                throw new Error(`${typeof backendError === 'string' ? backendError : JSON.stringify(backendError)}${details}${modelInfo}`);
             }
 
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
