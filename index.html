@@ -504,7 +504,8 @@
             const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(data?.error || data?.message || 'Error en la llamada al backend');
+                const backendError = data?.error || data?.message || data;
+                throw new Error(typeof backendError === 'string' ? backendError : JSON.stringify(backendError));
             }
 
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
@@ -517,7 +518,8 @@
                 return text;
             }
 
-            throw new Error(data?.error || 'Error procesando la respuesta de Gemini');
+            const backendError = data?.error || data?.message || data;
+            throw new Error(typeof backendError === 'string' ? backendError : JSON.stringify(backendError));
         }
 
         function parseGeminiJsonResponse(responseText) {
