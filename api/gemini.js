@@ -1,13 +1,15 @@
 export default async function handler(req, res) {
-    // 1. Esto lee la variable de entorno de Vercel (secreta y segura)
-    const apiKey = process.env.GEM_API_KEY;
+    const apiKey = process.env.GEM_API_KEY || process.env.API_KEY;
 
     if (!apiKey) {
-        return res.status(500).json({ error: "API Key no configurada en el servidor" });
+        return res.status(500).json({ error: 'API Key no configurada en el servidor' });
     }
 
-    // 2. Recibimos el prompt del frontend
-    const { prompt } = req.body;
+    const { prompt } = req.body || {};
+
+    if (!prompt) {
+        return res.status(400).json({ error: 'Falta el prompt' });
+    }
 
     try {
         const modelCandidates = [
@@ -39,7 +41,8 @@ export default async function handler(req, res) {
                     return res.status(200).json(data);
                 }
 
-                lastError = data?.error?.message || `Model ${model} failed with status ${response.status}`;
+                const detail = data?.error?.message || data?.message || `Model ${model} failed with status ${response.status}`;
+                lastError = detail;
 
                 if (response.status !== 404 && response.status !== 400) {
                     break;
