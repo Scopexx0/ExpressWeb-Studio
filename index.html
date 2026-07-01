@@ -424,7 +424,6 @@
 
         // Llamado principal a la API de Gemini
         async function generateWebPage() {
-            const apiKey = process.env.GEM_API_KEY; // El entorno provee la clave automáticamente
             const description = document.getElementById('businessDesc').value.trim();
             const style = document.getElementById('webStyle').value;
 
@@ -503,7 +502,7 @@
                 }
 
                 // Llamar con backoff exponencial
-                let responseText = await callGeminiWithRetry(apiKey, payloadContents, systemInstruction);
+                let responseText = await callGeminiWithRetry(payloadContents, systemInstruction);
                 
                 // Sanitizar posible bloque markdown ```json del output
                 responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -530,18 +529,12 @@
             }
         }
 
-        // Función de llamada directa a Gemini con Retry y Backoff Exponencial
-        async function callGeminiWithRetry(apiKey, contents, systemInstruction) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
+        // Función de llamada al endpoint seguro alojado en Vercel
+        async function callGeminiWithRetry(contents, systemInstruction) {
+            const url = '/api/gemini';
             const payload = {
-                contents: contents,
-                systemInstruction: {
-                    parts: [{ text: systemInstruction }]
-                },
-                generationConfig: {
-                    responseMimeType: "application/json"
-                }
+                contents,
+                systemInstruction
             };
 
             let maxRetries = 5;
@@ -557,13 +550,12 @@
 
                     if (response.ok) {
                         const data = await response.json();
-                        return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        return data.text;
                     }
-                    
-                    // Si falla por rate limits o servidor
+
                     if (response.status === 429 || response.status >= 500) {
                         await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; // Exponencial
+                        delay *= 2;
                         continue;
                     }
 
@@ -958,24 +950,20 @@
             btnEl.disabled = true;
 
             try {
-                const apiKey = process.env.GEM_API_KEY; // El entorno provee la clave
                 const prompt = `Actúa como un experto copywriter de marketing. Mejora el siguiente texto que debe ser ${instruction} para un negocio descrito como: "${businessDesc}". Hazlo persuasivo, atractivo y directo. Retorna SOLAMENTE el texto mejorado, sin comillas extra al inicio o final, sin formato markdown y sin introducciones. \n\nTexto actual a mejorar: "${currentText}"`;
-                
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                const payload = {
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.7 }
-                };
 
-                const response = await fetch(url, {
+                const response = await fetch('/api/gemini', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: 'Sos un copywriter experto que mejora textos comerciales de forma directa y persuasiva.'
+                    })
                 });
                 
                 if (response.ok) {
                     const data = await response.json();
-                    let newText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    let newText = data.text;
                     if (newText) {
                         inputEl.value = newText.trim().replace(/^"|"$/g, '');
                         updateLivePreview();
