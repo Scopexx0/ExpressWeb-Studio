@@ -424,6 +424,10 @@
 
         // Llamado principal a la API de Gemini
         async function generateWebPage() {
+<<<<<<< HEAD:main.html
+=======
+            const apiKey = ""; // El entorno provee la clave automáticamente
+>>>>>>> parent of 3953339 (app_fix):index.html
             const description = document.getElementById('businessDesc').value.trim();
             const style = document.getElementById('webStyle').value;
 
@@ -918,6 +922,10 @@
             btnEl.disabled = true;
 
             try {
+<<<<<<< HEAD:main.html
+=======
+                const apiKey = ""; // El entorno provee la clave
+>>>>>>> parent of 3953339 (app_fix):index.html
                 const prompt = `Actúa como un experto copywriter de marketing. Mejora el siguiente texto que debe ser ${instruction} para un negocio descrito como: "${businessDesc}". Hazlo persuasivo, atractivo y directo. Retorna SOLAMENTE el texto mejorado, sin comillas extra al inicio o final, sin formato markdown y sin introducciones. \n\nTexto actual a mejorar: "${currentText}"`;
 
                 const newText = await callGemini(prompt);
