@@ -424,7 +424,7 @@
 
         // Llamado principal a la API de Gemini
         async function generateWebPage() {
-            const apiKey = ""; // El entorno provee la clave automáticamente
+            const apiKey = GEM_API_KEY; // El entorno provee la clave automáticamente
             const description = document.getElementById('businessDesc').value.trim();
             const style = document.getElementById('webStyle').value;
 
@@ -958,7 +958,7 @@
             btnEl.disabled = true;
 
             try {
-                const apiKey = ""; // El entorno provee la clave
+                const apiKey = GEM_API_KEY; // El entorno provee la clave
                 const prompt = `Actúa como un experto copywriter de marketing. Mejora el siguiente texto que debe ser ${instruction} para un negocio descrito como: "${businessDesc}". Hazlo persuasivo, atractivo y directo. Retorna SOLAMENTE el texto mejorado, sin comillas extra al inicio o final, sin formato markdown y sin introducciones. \n\nTexto actual a mejorar: "${currentText}"`;
                 
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
