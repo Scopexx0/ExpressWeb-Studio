@@ -472,7 +472,7 @@
                 responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
                 
                 // Parsear respuesta
-                generatedData = JSON.parse(responseText);
+                generatedData = parseGeminiJsonResponse(responseText);
                 
                 // Rellenar formulario editable
                 populateEditableForm(generatedData);
@@ -501,21 +501,36 @@
                 body: JSON.stringify({ prompt })
             });
 
+            const data = await response.json().catch(() => ({}));
+
             if (!response.ok) {
-                throw new Error('Error en la llamada al backend');
+                throw new Error(data?.error || data?.message || 'Error en la llamada al backend');
             }
 
-            const data = await response.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+                || data?.text
+                || data?.response?.candidates?.[0]?.content?.parts?.[0]?.text
+                || data?.result?.text
+                || data?.output?.text;
 
-            if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-                return data.candidates[0].content.parts[0].text;
+            if (text) {
+                return text;
             }
 
-            if (data?.text) {
-                return data.text;
-            }
+            throw new Error(data?.error || 'Error procesando la respuesta de Gemini');
+        }
 
-            throw new Error('Error procesando la respuesta de Gemini');
+        function parseGeminiJsonResponse(responseText) {
+            try {
+                return JSON.parse(responseText);
+            } catch (error) {
+                const start = responseText.indexOf('{');
+                const end = responseText.lastIndexOf('}');
+                if (start >= 0 && end > start) {
+                    return JSON.parse(responseText.slice(start, end + 1));
+                }
+                throw new Error('La respuesta de Gemini no llegó en formato JSON válido.');
+            }
         }
 
         // Llenar datos editables
