@@ -438,71 +438,35 @@
             loadingText.textContent = "Conectando con Gemini para procesar el negocio...";
 
             try {
-                let payloadContents = [];
-                let systemInstruction = "Sos un diseñador web y copywriter experto para Pymes. Tu objetivo es retornar un JSON estructurado con los textos comerciales óptimos para estructurar una landing page exitosa para el negocio que el usuario proporcione.";
-
-                // Si hay imagen, armamos un payload de Visión
                 if (base64Image) {
                     loadingText.textContent = "Analizando tu imagen para captar colores, estilo e identidad...";
-                    const base64Data = base64Image.split(',')[1];
-                    const mimeType = base64Image.split(';')[0].split(':')[1];
-
-                    payloadContents = [{
-                        parts: [
-                            { text: `Analizá esta imagen del negocio junto con la descripción: "${description}". Generá un contenido web en español estructurado exactamente bajo el siguiente esquema JSON (no agregues markdown excedente, solo el objeto JSON crudo en texto plano).
-                            Esquema de respuesta esperado:
-                            {
-                              "name": "Nombre comercial idóneo o el provisto por el usuario",
-                              "slogan": "Eslogan atractivo de venta",
-                              "heroSubtitle": "Una propuesta de valor de un renglón potente",
-                              "aboutUs": "Un texto de unas 3 o 4 líneas que explique de forma cálida e irresistible la historia o el propósito de este negocio basándote en la imagen/descripción",
-                              "services": [
-                                {"title": "Servicio/Producto 1", "desc": "Descripción atractiva e individual de máx 2 renglones"},
-                                {"title": "Servicio/Producto 2", "desc": "Descripción atractiva e individual de máx 2 renglones"},
-                                {"title": "Servicio/Producto 3", "desc": "Descripción atractiva e individual de máx 2 renglones"}
-                              ],
-                              "testimonial": "Una reseña/testimonio inventada extremadamente realista de un cliente satisfecho que destaque una fortaleza visible del negocio",
-                              "testimonialAuthor": "Nombre del cliente feliz (Ej: María S.)",
-                              "phone": "Un número de teléfono genérico o inventado de formato local si no se provee (Ej: +54 280 4123456)",
-                              "address": "Una dirección lógica basada en la descripción (Ej: Av. Principal 456, Trelew) o 'Servicio a domicilio'",
-                              "hours": "Un horario comercial estándar e ideal para el rubro (Ej: Lunes a Sábados de 08:30 a 20:00 hs)"
-                            }` },
-                            {
-                                inlineData: {
-                                    mimeType: mimeType,
-                                    data: base64Data
-                                }
-                            }
-                        ]
-                    }];
                 } else {
-                    // Texto puro
                     loadingText.textContent = "Generando estructura comercial y textos optimizados...";
-                    payloadContents = [{
-                        parts: [
-                            { text: `Procesá la siguiente descripción de negocio: "${description}". Generá un contenido comercial en español estructurado exactamente bajo este esquema JSON (sin bloques de código markdown, solo texto JSON plano):
-                            {
-                              "name": "Nombre comercial idóneo",
-                              "slogan": "Eslogan comercial atrapante",
-                              "heroSubtitle": "Una propuesta de valor ideal de un renglón",
-                              "aboutUs": "Un texto de unas 3 o 4 líneas que explique de forma profesional la esencia y valor de este negocio.",
-                              "services": [
-                                {"title": "Servicio/Producto 1", "desc": "Descripción atractiva e individual de máx 2 renglones"},
-                                {"title": "Servicio/Producto 2", "desc": "Descripción atractiva e individual de máx 2 renglones"},
-                                {"title": "Servicio/Producto 3", "desc": "Descripción atractiva e individual de máx 2 renglones"}
-                              ],
-                              "testimonial": "Una reseña/testimonio súper realista de un cliente feliz",
-                              "testimonialAuthor": "Nombre de cliente ficticio",
-                              "phone": "Formato de contacto lógico",
-                              "address": "Dirección idónea o entrega a domicilio",
-                              "hours": "Horario lógico sugerido"
-                            }` }
-                        ]
-                    }];
                 }
 
-                // Llamar con backoff exponencial
-                let responseText = await callGeminiWithRetry(payloadContents, systemInstruction);
+                const visualContext = base64Image
+                    ? "Se adjuntó una imagen del negocio. Tené en cuenta sus colores, ambiente y estilo visual para orientar la propuesta. "
+                    : "";
+
+                const prompt = `Sos un diseñador web y copywriter experto para Pymes. ${visualContext}Procesá la siguiente descripción de negocio: "${description}". Tené en cuenta el estilo visual sugerido: "${style}". Generá un contenido comercial en español estructurado exactamente bajo este esquema JSON (sin bloques de código markdown, solo texto JSON plano):
+                {
+                  "name": "Nombre comercial idóneo",
+                  "slogan": "Eslogan comercial atrapante",
+                  "heroSubtitle": "Una propuesta de valor ideal de un renglón",
+                  "aboutUs": "Un texto de unas 3 o 4 líneas que explique de forma profesional la esencia y valor de este negocio.",
+                  "services": [
+                    {"title": "Servicio/Producto 1", "desc": "Descripción atractiva e individual de máx 2 renglones"},
+                    {"title": "Servicio/Producto 2", "desc": "Descripción atractiva e individual de máx 2 renglones"},
+                    {"title": "Servicio/Producto 3", "desc": "Descripción atractiva e individual de máx 2 renglones"}
+                  ],
+                  "testimonial": "Una reseña/testimonio súper realista de un cliente feliz",
+                  "testimonialAuthor": "Nombre de cliente ficticio",
+                  "phone": "Formato de contacto lógico",
+                  "address": "Dirección idónea o entrega a domicilio",
+                  "hours": "Horario lógico sugerido"
+                }`;
+
+                let responseText = await callGemini(prompt);
                 
                 // Sanitizar posible bloque markdown ```json del output
                 responseText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -530,43 +494,28 @@
         }
 
         // Función de llamada al endpoint seguro alojado en Vercel
-        async function callGeminiWithRetry(contents, systemInstruction) {
-            const url = '/api/gemini';
-            const payload = {
-                contents,
-                systemInstruction
-            };
+        async function callGemini(prompt) {
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
 
-            let maxRetries = 5;
-            let delay = 1000;
-
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        return data.text;
-                    }
-
-                    if (response.status === 429 || response.status >= 500) {
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2;
-                        continue;
-                    }
-
-                    throw new Error(`Error en API: ${response.status} ${response.statusText}`);
-                } catch (e) {
-                    if (i === maxRetries - 1) throw e;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    delay *= 2;
-                }
+            if (!response.ok) {
+                throw new Error('Error en la llamada al backend');
             }
-            throw new Error('Se superaron todos los reintentos de conexión con el modelo.');
+
+            const data = await response.json();
+
+            if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return data.candidates[0].content.parts[0].text;
+            }
+
+            if (data?.text) {
+                return data.text;
+            }
+
+            throw new Error('Error procesando la respuesta de Gemini');
         }
 
         // Llenar datos editables
@@ -952,26 +901,14 @@
             try {
                 const prompt = `Actúa como un experto copywriter de marketing. Mejora el siguiente texto que debe ser ${instruction} para un negocio descrito como: "${businessDesc}". Hazlo persuasivo, atractivo y directo. Retorna SOLAMENTE el texto mejorado, sin comillas extra al inicio o final, sin formato markdown y sin introducciones. \n\nTexto actual a mejorar: "${currentText}"`;
 
-                const response = await fetch('/api/gemini', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        systemInstruction: 'Sos un copywriter experto que mejora textos comerciales de forma directa y persuasiva.'
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    let newText = data.text;
-                    if (newText) {
-                        inputEl.value = newText.trim().replace(/^"|"$/g, '');
-                        updateLivePreview();
-                        // Pequeña notificación visual
-                        btnEl.innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i> ¡Mejorado!';
-                        setTimeout(() => { btnEl.innerHTML = originalHTML; btnEl.disabled = false; }, 2000);
-                        return;
-                    }
+                const newText = await callGemini(prompt);
+                if (newText) {
+                    inputEl.value = newText.trim().replace(/^"|"$/g, '');
+                    updateLivePreview();
+                    // Pequeña notificación visual
+                    btnEl.innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i> ¡Mejorado!';
+                    setTimeout(() => { btnEl.innerHTML = originalHTML; btnEl.disabled = false; }, 2000);
+                    return;
                 }
                 throw new Error('Error al generar texto mejorado.');
             } catch (error) {
